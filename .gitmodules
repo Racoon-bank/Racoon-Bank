@@ -1,0 +1,15 @@
+[submodule "repos/Core"]
+	path = repos/Core
+	url = https://github.com/Racoon-bank/Racoon-Core
+[submodule "repos/Credit"]
+	path = repos/Credit
+	url = https://github.com/Racoon-bank/Racoon-Credit
+[submodule "repos/Info"]
+	path = repos/Info
+	url = https://github.com/Racoon-bank/Racoon-Info
+[submodule "repos/Client"]
+	path = repos/Client
+	url = https://github.com/Racoon-bank/Racoon-Client
+[submodule "repos/Employee"]
+	path = repos/Employee
+	url = https://github.com/Racoon-bank/Racoon-Employee
