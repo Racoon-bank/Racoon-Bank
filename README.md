@@ -7,6 +7,8 @@ git clone --recurse-submodules [git@github.com:Dark-Type/<meta-repo>.git](https:
 To update use
 
 ```
+git pull
+
 git submodule update --init --recursive
 
 git submodule update --remote --merge
