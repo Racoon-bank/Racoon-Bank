@@ -16,6 +16,10 @@ git submodule update --remote --merge
 #then commit
 
 ```
+Services available at:
+- https://info.hits-playground.ru/swagger/index.html
+- https://core.hits-playground.ru/swagger/index.html
+- https://credit.hits-playground.ru/swagger-ui/index.htm
 ```mermaid
 graph LR
 
