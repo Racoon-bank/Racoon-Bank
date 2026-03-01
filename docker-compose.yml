@@ -1,0 +1,127 @@
+version: "3.9"
+
+services:
+
+  # ─── Databases ──────────────────────────────────────────────────────────────
+
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: racoon-sqlserver
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "${MSSQL_SA_PASSWORD}"
+    volumes:
+      - sqlserver_data:/var/opt/mssql
+    networks:
+      - racoon-net
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -Q \"SELECT 1\" -No"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: racoon-postgres
+    environment:
+      POSTGRES_USER: "${POSTGRES_USER}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
+      POSTGRES_DB: credit_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - racoon-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  # ─── Services ───────────────────────────────────────────────────────────────
+
+  racoon-core:
+    image: darktype/racoon_bank:core
+    container_name: racoon-core
+    ports:
+      - "127.0.0.1:5001:5001"
+    environment:
+      ASPNETCORE_ENVIRONMENT: "Development"
+      ConnectionStrings__DefaultConnection: >-
+        Server=sqlserver,1433;Database=BankCore;
+        User Id=sa;Password=${MSSQL_SA_PASSWORD};
+        TrustServerCertificate=True;
+      JWT__Issuer: "http://racoon:5001"
+      JWT__Audience: "http://racoon:5001"
+      JWT__SigningKey: "${JWT_SIGNING_KEY}"
+      ServiceAuth__CreditServiceKey: "${CREDIT_SERVICE_KEY}"
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    networks:
+      - racoon-net
+    restart: unless-stopped
+
+  racoon-info:
+    image: darktype/racoon_bank:info
+    container_name: racoon-info
+    ports:
+      - "127.0.0.1:5002:5002"
+    environment:
+      ASPNETCORE_ENVIRONMENT: "Development"
+      ConnectionStrings__DefaultConnection: >-
+        Server=sqlserver,1433;Database=BankInfo;
+        User Id=sa;Password=${MSSQL_SA_PASSWORD};
+        TrustServerCertificate=True;
+      JWT__Issuer: "http://racoon:5001"
+      JWT__Audience: "http://racoon:5001"
+      JWT__SigningKey: "${JWT_SIGNING_KEY}"
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    networks:
+      - racoon-net
+    restart: unless-stopped
+
+  racoon-credit:
+    image: darktype/racoon_bank:credit
+    container_name: racoon-credit
+    ports:
+      - "127.0.0.1:8090:8080"
+    environment:
+      # Database Configuration (IMPORTANT: no localhost inside docker)
+      DB_URL: "jdbc:postgresql://postgres:5432/credit_db"
+      DB_USERNAME: "${POSTGRES_USER}"
+      DB_PASSWORD: "${POSTGRES_PASSWORD}"
+      SPRING_DATASOURCE_URL: "jdbc:postgresql://postgres:5432/credit_db"
+      SPRING_DATASOURCE_USERNAME: "${POSTGRES_USER}"
+      SPRING_DATASOURCE_PASSWORD: "${POSTGRES_PASSWORD}"
+      # Server Configuration
+      SERVER_PORT: "8080"
+      SPRING_JPA_HIBERNATE_DDL_AUTO: "update"
+      # JWT Configuration
+      JWT_SIGNING_KEY: "${JWT_SIGNING_KEY}"
+      JWT_ISSUER: "http://racoon:5001"
+      JWT_AUDIENCE: "http://racoon:5001"
+      APP_SERVER_URL: "https://credit.hits-playground.ru"
+      # Core Service Integration
+      CORE_SERVICE_URL: "https://core.hits-playground.ru"
+      CREDIT_SERVICE_KEY: "${CREDIT_SERVICE_KEY}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - racoon-net
+    restart: unless-stopped
+
+# ─── Volumes & Network ────────────────────────────────────────────────────────
+
+volumes:
+  sqlserver_data:
+  postgres_data:
+
+networks:
+  racoon-net:
+    driver: bridge
